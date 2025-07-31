@@ -1,0 +1,63 @@
+services:
+  mysql:
+    container_name: mysql
+    image: mysql:8.4
+    restart: always
+    ports:
+      - "13306:3306"
+    networks:
+      - internal
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - ./.volumes/mysql:/var/lib/mysql
+
+  php-fpm:
+    container_name: php-fpm
+    build:
+      context: .
+      dockerfile: .docker/php/Dockerfile
+    depends_on:
+      - mysql
+    networks:
+      - internal
+    volumes:
+      - ./www/:/var/www/html/
+      - ./.logs/php:/var/log/fpm-php.www.log
+
+  nginx:
+    container_name: nginx
+    build:
+      context: .
+      dockerfile: .docker/nginx/Dockerfile
+    restart: always
+    depends_on:
+      - php-fpm
+    ports:
+      - "8080:80"
+    networks:
+      - internal
+    volumes:
+      - ./www/:/var/www/html/
+      - ./.logs/nginx:/var/log/nginx/
+
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin/phpmyadmin:latest
+    restart: always
+    depends_on:
+      - mysql
+    ports:
+      - "13307:80"
+    networks:
+      - internal
+    environment:
+      PMA_HOST: mysql
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+
+networks:
+  internal:
+    driver: bridge
